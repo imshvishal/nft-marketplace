@@ -4,27 +4,31 @@ pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NFTToken is ERC721URIStorage {
+contract FireNFTToken is ERC721URIStorage, Ownable {
     uint256 private _currentTokenId;
-    address payable owner;
-    constructor(string memory name, string memory symbol) ERC721(name, symbol) {
-        owner = payable(msg.sender);
+
+    constructor(
+        string memory name,
+        string memory symbol
+    ) ERC721(name, symbol) Ownable(msg.sender) {
+        _currentTokenId = 0;
     }
 
     //user can mint the nft in the cotract without any listing payment but the user will not be able to list them without payment
-    function createNFT(string memory tokenURI) public returns (uint256) {
-        _safeMint(msg.sender, ++_currentTokenId);
+    function createNFT(
+        address _owner,
+        string memory tokenURI
+    ) external returns (uint256) {
+        _safeMint(_owner, ++_currentTokenId);
         _setTokenURI(_currentTokenId, tokenURI);
         return _currentTokenId;
     }
 
     function getCurrentTokenId() public view returns (uint256) {
         return _currentTokenId;
-    }
-
-    function getOwner(uint256 tokenId) public view returns (address) {
-        return ownerOf(tokenId);
     }
 
     function deleteNFT(uint256 tokenId) public {
