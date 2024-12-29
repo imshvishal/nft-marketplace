@@ -20,10 +20,13 @@ async function main() {
     val = await marketPlace.listNFT(nftToken.target, 1, 1000000, { value: 2500000000000000 })
     await val.wait()
     val = await marketPlace.nftListing(owner, nftToken.target, 1)
+    console.log(val)
     console.log("OWNER: ", await nftToken.ownerOf(1));
     // console.log("BALANCE: ", await marketPlace();
     await marketPlace.connect(user1).buyWithNative(nftToken.target, 1, { value: val.price, })
     console.log("OWNER: ", await nftToken.ownerOf(1));
+    val = await marketPlace.nftListing(user1, nftToken.target, 1)
+    console.log(val)
 }
 
 main().catch((error) => {
