@@ -88,6 +88,7 @@ contract FireNFTMarketPlace is Ownable, ReentrancyGuard {
             FireNFTToken(nftCtrAddr).ownerOf(tokenId) == msg.sender,
             "You are not the owner of this NFT"
         );
+        fireToken.safeTransferFrom(msg.sender, address(this), listingPrice);
         nftListing[msg.sender][nftCtrAddr][tokenId] = NFTListing(
             sp,
             FireNFTToken(nftCtrAddr).tokenURI(tokenId),
@@ -102,7 +103,7 @@ contract FireNFTMarketPlace is Ownable, ReentrancyGuard {
             "You are not the owner of this NFT"
         );
         require(
-            nftListing[msg.sender][nftContract][tokenId].isListed == false,
+            nftListing[msg.sender][nftContract][tokenId].isListed == true,
             "NFT is not listed"
         );
         nftListing[msg.sender][nftContract][tokenId].isListed = false;
