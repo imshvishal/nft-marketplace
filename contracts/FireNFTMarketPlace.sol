@@ -45,19 +45,15 @@ contract FireNFTMarketPlace is Ownable {
         royaltyPercent = newRoyaltyPercent;
     }
 
-    modifier byOwner(address _nftCtrAddr, uint256 _tokenId) {
+    function addNFTtoMarketPlace(
+        address _nftCtrAddr,
+        uint256 _tokenId
+    ) external returns (uint256) {
+        // check whether it exisits or not
         require(
             FireNFTToken(_nftCtrAddr).ownerOf(_tokenId) == msg.sender,
             "You are not the owner of token"
         );
-        _;
-    }
-
-    function addNFTtoMarketPlace(
-        address _nftCtrAddr,
-        uint256 _tokenId
-    ) external byOwner(_nftCtrAddr, _tokenId) returns (uint256) {
-        // check whether it exisits or not
         _items++;
         nftListing[_items] = NFTData(
             _items,
@@ -82,8 +78,8 @@ contract FireNFTMarketPlace is Ownable {
             FireNFTToken(nft.nftContract).ownerOf(nft.tokenId) == msg.sender,
             "You are not the owner of this NFT"
         );
-        require(nftListing[_itemNo].isListed == false, "NFT is already listed");
-        require(msg.value >= listingPrice, "Insufficient listing fee");
+        require(nftListing[_itemNo].isListed == false, "NFT already listed");
+        require(msg.value >= listingPrice, "Insufficient balance");
         require(_sellingPrice > 0, "Selling Price should be greater than 0");
         nft.price = _sellingPrice;
         nft.seller = payable(msg.sender);
@@ -101,7 +97,7 @@ contract FireNFTMarketPlace is Ownable {
             FireNFTToken(nft.nftContract).ownerOf(nft.tokenId) == msg.sender,
             "You are not the owner of this NFT"
         );
-        require(nftListing[_itemNo].isListed == false, "NFT is already listed");
+        require(nftListing[_itemNo].isListed == false, "NFT already listed");
         require(
             fireToken.allowance(msg.sender, address(this)) >= listingPrice,
             "Not enough funds approved"
@@ -114,20 +110,22 @@ contract FireNFTMarketPlace is Ownable {
         return true;
     }
 
-    function unlist(uint256 _itemNo) public {
+    function unlistNFT(uint256 _itemNo) public {
         NFTData storage nft = nftListing[_itemNo];
         require(
             FireNFTToken(nft.nftContract).ownerOf(nft.tokenId) == msg.sender,
             "You are not the owner of this NFT"
         );
-        require(nftListing[_itemNo].isListed == true, "NFT is not listed");
+        require(nftListing[_itemNo].isListed == true, "NFT not listed");
+        nft.seller = payable(address(0));
+        nft.price = 0;
         nftListing[_itemNo].isListed = false;
     }
 
     function buyWithNative(uint256 _itemNo) external payable returns (bool) {
         NFTData storage nft = nftListing[_itemNo];
         FireNFTToken nftContract = FireNFTToken(nft.nftContract);
-        require(nft.isListed == true, "NFT is not listed");
+        require(nft.isListed == true, "NFT not listed");
         require(msg.value >= nft.price, "Insufficient funds to buy the nft");
         require(
             nftContract.getApproved(nft.tokenId) == address(this),
@@ -137,6 +135,7 @@ contract FireNFTMarketPlace is Ownable {
         uint256 sellerAmount = msg.value - commission;
         nft.seller = payable(msg.sender);
         nft.isListed = false;
+        nft.price = 0;
         payable(nftContract.ownerOf(nft.tokenId)).transfer(sellerAmount);
         nftContract.safeTransferFrom(
             nftContract.ownerOf(nft.tokenId),
@@ -150,14 +149,14 @@ contract FireNFTMarketPlace is Ownable {
         NFTData storage nft = nftListing[_itemNo];
         FireNFTToken nftContract = FireNFTToken(nft.nftContract);
         address nftOwner = nftContract.ownerOf(nft.tokenId);
-        require(nft.isListed == true, "NFT is not listed");
+        require(nft.isListed == true, "NFT not listed");
         require(
             fireToken.allowance(msg.sender, address(this)) >= nft.price,
             "Funds not approved to be transferred"
         );
         require(
             nftContract.getApproved(nft.tokenId) == address(this),
-            "NFT is not approved to be transferred"
+            "NFT not approved to be transferred"
         );
         uint256 commission = (nft.price * commissionPercent) / 100;
         uint256 sellerAmount = nft.price - commission;
@@ -165,6 +164,7 @@ contract FireNFTMarketPlace is Ownable {
         fireToken.safeTransferFrom(msg.sender, nftOwner, sellerAmount);
         nft.seller = payable(msg.sender);
         nft.isListed = false;
+        nft.price = 0;
         nftContract.safeTransferFrom(
             nftContract.ownerOf(nft.tokenId),
             msg.sender,
@@ -180,6 +180,18 @@ contract FireNFTMarketPlace is Ownable {
         );
         fireToken.safeTransfer(addr, fireToken.balanceOf(address(this)));
         return true;
+    }
+
+    function getNFTCount() external view returns (uint256) {
+        return _items;
+    }
+
+    function getNFT(uint256 _itemNo) external view returns (NFTData memory) {
+        return nftListing[_itemNo];
+    }
+
+    function getLatestNFT() external view returns (NFTData memory) {
+        return nftListing[_items];
     }
 
     function getAllListedNFTs() external view returns (NFTData[] memory) {
@@ -221,14 +233,20 @@ contract FireNFTMarketPlace is Ownable {
     function getMyBoughtNFTs() external view returns (NFTData[] memory) {
         uint256 listedCount = 0;
         for (uint256 i = 1; i <= _items; i++) {
-            if (nftListing[i].seller == msg.sender && nftListing[i].owner != msg.sender) {
+            if (
+                nftListing[i].seller == msg.sender &&
+                nftListing[i].owner != msg.sender
+            ) {
                 listedCount++;
             }
         }
         NFTData[] memory nftDatas = new NFTData[](listedCount);
         uint256 index = 0;
         for (uint256 i = 1; i <= _items; i++) {
-            if (nftListing[i].seller == msg.sender && nftListing[i].owner != msg.sender) {
+            if (
+                nftListing[i].seller == msg.sender &&
+                nftListing[i].owner != msg.sender
+            ) {
                 nftDatas[index] = nftListing[i];
                 index++;
             }
